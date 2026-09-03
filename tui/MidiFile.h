@@ -35,7 +35,7 @@ int         poly_inst_count(void);
 #define M2P_ROLE_BASS  1
 #define M2P_ROLE_PAD   2
 
-#include "../midiev.h"  // PrismEv_t: the conversion output format
+#include "../src/midiev.h"  // PrismEv_t: the conversion output format
 
 #define MIDI_MAX_TRACKS  24
 #define MIDI_GRID_ROWS   12     // 3 braille lines x 4 dot rows

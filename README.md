@@ -263,10 +263,10 @@ same way as the prebuilt:
 
 | path | what |
 |------|------|
-| `main.c`, `console.c`, `play.c`, `synth*.c`, `midi.c`, … | firmware |
+| `src/` | firmware sources — `main.c`, `console.c`, `play.c`, `synth*.c`, `midi.c`, … |
 | `tui/` | the on‑chip terminal UI (pdcurses + termcurses over the UART) |
-| `chroma_*.c` | compiled chroma bitstreams; `.v`/`.lst` are *served*, not linked |
-| `runtime.c` | local ttsky25a runtime (host‑fs syscall glue) |
+| `src/chroma_*.c` | compiled chroma bitstreams; `.v`/`.lst` are *served*, not linked |
+| `src/runtime.c`, `src/tqv_fs.c` | local ttsky25a runtime + host‑fs syscall glue |
 | `tqv.py`, `run_tinyqv.py` | host console / flashing tool |
 | `tqvfs/` | filesystem served to the chip (chromas, songs, sounds, prefs) |
 | `tools/` | host helpers (the `l4z` DSM compressor, MIDI converters) |

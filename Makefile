@@ -20,6 +20,10 @@ TUI_SOURCES = $(wildcard tui/*.c) \
               $(wildcard tui/*.cxx)
 PROJECT_SOURCES += $(TUI_SOURCES)
 
+# Firmware C/C++/asm sources live in src/; VPATH lets PROJECT_SOURCES
+# stay as bare names and objects stay flat in obj/.
+VPATH = src
+
 RISCV_TOOLCHAIN ?= /opt/tinyQV
 
 CC = $(RISCV_TOOLCHAIN)/bin/riscv32-unknown-elf-gcc
@@ -44,7 +48,7 @@ FULL_SONG ?= 0
 ifneq ($(FULL_SONG),0)
 SONG_FLAGS = -DFULL_SONG
 endif
-CFLAGS = -O2 $(SONG_FLAGS) -I. -I$(TINYQV_SDK) -march=rv32ec_zicsr_zcb_zicond_zilsd -mabi=ilp32e -mno-strict-align -nostdlib -nostartfiles -ffreestanding -ffunction-sections -fdata-sections -Wall -Werror -MMD -MP
+CFLAGS = -O2 $(SONG_FLAGS) -Isrc -I$(TINYQV_SDK) -march=rv32ec_zicsr_zcb_zicond_zilsd -mabi=ilp32e -mno-strict-align -nostdlib -nostartfiles -ffreestanding -ffunction-sections -fdata-sections -Wall -Werror -MMD -MP
 
 all: $(PROJECT_NAME).bin $(PROJECT_NAME).hex chromas
 

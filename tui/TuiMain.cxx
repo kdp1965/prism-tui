@@ -12,7 +12,7 @@
 #include "Prism.h"
 
 extern "C" {
-#include "../prism_tui.h"
+#include "../src/prism_tui.h"
 }
 
 extern "C" void tui_run(void)

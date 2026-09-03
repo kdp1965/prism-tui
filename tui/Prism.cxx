@@ -49,7 +49,7 @@ extern "C" {
 #include <prism.h>
 #include <csr.h>
 #include <tqv_fs.h>
-#include "../prism_tui.h"
+#include "../src/prism_tui.h"
 
 // runtime.c: stdout redirection hook used by _write()
 extern int (*__tinyqv_stdout_hook)(const char *buffer, int length);
