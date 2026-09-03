@@ -1,0 +1,4 @@
+[submodule "tinyQV-sdk"]
+	path = tinyQV-sdk
+	url = git@github.com:kdp1965/tinyQV-sdk.git
+	branch = ttsky25a
