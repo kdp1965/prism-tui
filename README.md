@@ -50,7 +50,7 @@ library talking straight to the board's USB serial port.
 - **Python 3.8+**. `tqv.py` needs only the standard library.
 - macOS or Linux work out of the box. Windows needs WSL.
 - To *build the firmware* from source: the `riscv32-unknown-elf` GCC
-  toolchain (default `/opt/tinyQV`) — see [section 5](#5-building-from-source).
+  toolchain (default `/opt/tinyQV`) — see [section 6](#6-building-from-source).
   You do **not** need it just to flash the prebuilt image.
 - To *build sound packs* (`mp3todcm/`): `numpy`, `scipy`, and `ffmpeg` on
   your PATH for decoding.
@@ -67,7 +67,14 @@ From the repo root:
 ./tqv.py flash prebuilt/prism_tui.bin --baud 1000000
 ```
 
-You'll land at the `prism>` prompt. Try:
+You'll land at the `prism>` prompt. To hear something right away (with the
+Audio PMOD or a speaker on `uo_out[7]`), type:
+
+```
+synthp demo 2   # a polyphonic PWL synth demo — press any key to stop
+```
+
+Then explore:
 
 ```
 help            # list every command
@@ -180,7 +187,53 @@ tracks to the `.bin` song format used in [section 3](#3-playing-the-example-song
 
 ---
 
-## 5. Building from source
+## 5. Exploring a chroma's FSM (`show fsm`)
+
+Every chroma is a small state machine, and the TUI can draw it. Because the
+picture is built from the chroma's Verilog **and** tied to the running
+design, two things must be true first:
+
+1. **The chroma is loaded** (and enabled) on the hardware, and
+2. **its `.v` source is open** in a tab (opening it parses the FSM).
+
+```
+load ws2812        # load the chroma onto PRISM …
+en                 #   … and enable it
+tui                # enter the full-screen UI
+open ws2812.v      # fetch + parse the Verilog (served from tqvfs/chromas/)
+show fsm           # draw the state diagram
+```
+
+If you `show fsm` with the `.v` open but a *different* (or no) chroma loaded,
+it says so — the diagram always reflects the chroma that is actually running,
+so its "current state" arrow and single-step views stay truthful.
+
+**What you get.** Each state shows its name (bright), the outputs it drives
+at steady state, and its transitions as `if <cond>` / `else` lines with the
+outputs asserted during each. Connections to the target states are drawn as
+colored routing lines — one color per destination — through a channel down
+the middle, with `->`/`<-` arrowheads landing on the target state.
+
+**Where it draws.** On a terminal wider than 80 columns, `show fsm` splits
+the `.v` tab — code on the left, diagram on the right — and repeating the
+command toggles it off. On a narrower terminal it opens a dedicated **FSM**
+tab instead. Force a tab regardless of width with `show fsm tab`, and take
+the diagram down with `hide fsm`. `CTRL-F` / `CTRL-B` scroll the code without
+disturbing the split-pane diagram.
+
+On a short terminal the layout compacts automatically: instead of four equal
+cells per column, each state takes only the height it needs (with a blank
+separator between states) so more of the machine stays on screen.
+
+**Related.** `show <state>` centers that state's code in the `.v` tab;
+`print <signal>` reads a parsed input/output pin's live value from the PRISM
+registers; and while halted (`halt` / `step` / `go`) the diagram and code
+track the hardware's current state. All of these need the parsed `.v`, so
+`open <chroma>.v` first.
+
+---
+
+## 6. Building from source
 
 The TinyQV SDK is a git **submodule**. Clone with it, or initialise it after:
 
@@ -225,7 +278,7 @@ them if you have it, and is a harmless no‑op if you don't.
 
 ---
 
-## 6. Handy `tqv.py` commands
+## 7. Handy `tqv.py` commands
 
 | command | does |
 |---------|------|

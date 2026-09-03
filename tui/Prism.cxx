@@ -3144,6 +3144,53 @@ static int diag_wrap(WINDOW *pWnd, int ln, int lnMax, int x, int w,
   return ln;
 }
 
+// How many lines diag_wrap() would emit for this text at width w (no
+// window, no bound) - used to pre-measure a state's height for the
+// compact stacked layout.
+static int diag_wrap_lines(const char *sp, int w)
+{
+  int n = 0;
+
+  while (*sp == ' ')
+    sp++;
+  while (*sp != 0)
+  {
+    int len = (int)strlen(sp);
+
+    if (len > w)
+    {
+      len = w;
+      while (len > 0 && sp[len] != ' ')
+        len--;
+      if (len == 0)
+        len = w;
+    }
+    sp += len;
+    n++;
+    while (*sp == ' ')
+      sp++;
+  }
+  return n;
+}
+
+// Total rows a state's cell needs: name + wrapped steady outputs + per
+// transition one label line plus its wrapped conditional outputs.  Must
+// match what the draw loop emits so stacked cells line up with nameRow.
+static int fsm_cell_height(const CPrism::FsmCell *c, int contentW)
+{
+  int h = 1;                            // the state name
+
+  if (c->steady[0])
+    h += diag_wrap_lines(c->steady, contentW);
+  for (int k = 0; k < c->nTr; k++)
+  {
+    h += 1;                             // the if/else/goto label
+    if (c->tr[k].outs[0])
+      h += diag_wrap_lines(c->tr[k].outs, contentW - 2);
+  }
+  return h;
+}
+
 /*
 ==============================================================================
 Draw the FSM diagram
@@ -3191,6 +3238,42 @@ void CPrism::DrawFsmDiag(WINDOW *pWnd, ListingCtx *pCtx, int x0,
     }
   }
 
+  // Layout: normally each column is 4 equal cells.  On a short terminal
+  // (< 8 lines/state + 2 header = 34) that clips content, so instead
+  // stack each state at only the height it needs plus a blank separator,
+  // tracking every state's top row so the routing channel still knows
+  // where each connection begins and ends.
+  int compact = rows < 34;
+  int yTop[8];
+
+  for (int i = 0; i < 8; i++)
+    yTop[i] = -1;
+  if (compact)
+  {
+    int next[2] = { 0, 0 };             // running top row per column
+                                        // (row 0: the old ring-wrap
+                                        //  reservation is gone)
+
+    for (int si = 0; si < 8; si++)
+    {
+      int idx = -1;
+
+      for (int j = 0; j < f->nStates; j++)
+        if (f->st[j].si == si)
+          idx = j;
+      if (idx < 0)
+        continue;
+
+      int col = si < 4 ? 0 : 1;
+
+      yTop[si] = next[col];
+      next[col] += fsm_cell_height(&d->cell[si], contentW) + 1;  // + blank
+    }
+  }
+  else
+    for (int si = 0; si < 8; si++)
+      yTop[si] = (si < 4 ? si : si - 4) * cellH;
+
   // Draw for 8 states
   for (int si = 0; si < 8; si++)
   {
@@ -3206,7 +3289,8 @@ void CPrism::DrawFsmDiag(WINDOW *pWnd, ListingCtx *pCtx, int x0,
     int col = si < 4 ? 0 : 1;
     int r = si < 4 ? si : si - 4;
     int x = col ? cx1 : cx0;
-    int y = 1 + r * cellH;
+    int y = yTop[si];
+    int bound = compact ? rows : y + cellH;   // content clip for this cell
     int ln = y;
 
     nameRow[si] = y;
@@ -3235,14 +3319,14 @@ void CPrism::DrawFsmDiag(WINDOW *pWnd, ListingCtx *pCtx, int x0,
     if (c->steady[0])
     {
       wattron(pWnd, COLOR_PAIR(SYNTAX_PAIR_NORMAL));
-      ln = diag_wrap(pWnd, ln, y + cellH, x + 2, contentW, c->steady);
+      ln = diag_wrap(pWnd, ln, bound, x + 2, contentW, c->steady);
       wattroff(pWnd, COLOR_PAIR(SYNTAX_PAIR_NORMAL));
     }
 
     // Save the line of the 'if'
     if_ln   = ln;
     else_ln = -1;
-    for (int k = 0; k < c->nTr && ln < y + cellH - 1; k++)
+    for (int k = 0; k < c->nTr && ln < (compact ? bound : bound - 1); k++)
     {
       FsmTrans *tr = &c->tr[k];
       char lbl[64];
@@ -3280,12 +3364,12 @@ void CPrism::DrawFsmDiag(WINDOW *pWnd, ListingCtx *pCtx, int x0,
       wattron(pWnd, COLOR_PAIR(SYNTAX_PAIR_NORMAL));
       mvwprintw(pWnd, ln++, x + 2, "%.*s", colW - 1, lbl);
       wattroff(pWnd, COLOR_PAIR(SYNTAX_PAIR_NORMAL));
-      if (tr->outs[0] && ln < y + cellH)
+      if (tr->outs[0] && ln < bound)
       {
         // conditional outputs: same word-wrap, at indent 3 (so two
         // columns narrower than the steady lines)
         wattron(pWnd, COLOR_PAIR(SYNTAX_PAIR_COMMENT));
-        ln = diag_wrap(pWnd, ln, y + cellH, x + 3, contentW - 2,
+        ln = diag_wrap(pWnd, ln, bound, x + 3, contentW - 2,
                        tr->outs);
         wattroff(pWnd, COLOR_PAIR(SYNTAX_PAIR_COMMENT));
       }
@@ -3309,11 +3393,18 @@ void CPrism::DrawFsmDiag(WINDOW *pWnd, ListingCtx *pCtx, int x0,
       wattron(pWnd, COLOR_PAIR(SYNTAX_PAIR_NOTES_VOCAL));
       if (r < 7 && r != 3)
       {
+        // Down to the blank separator row just above the next state.
+        // Use yTop[] (computed for ALL states in the positioning pass) -
+        // nameRow[si+1] is not filled until that state is drawn later in
+        // this loop, so it would fall back to the wrong cellH position.
+        int nb = (si + 1 < 8 && yTop[si + 1] > 0)
+                 ? yTop[si + 1] - 1 : y + cellH - 1;
+
         mvwaddch(pWnd, start_ln, x, '+');
         mvwaddch(pWnd, start_ln, x+1, '-');
-        for (int yy = start_ln+1; yy < y + cellH - 1; yy++)
+        for (int yy = start_ln + 1; yy <= nb; yy++)
           mvwaddch(pWnd, yy, x, '|');
-        mvwaddch(pWnd, y + cellH - 1, x, 'v');
+        mvwaddch(pWnd, nb, x, 'v');     // 'v' on the blank line
       }
       else if (col == 0 && r == 3)
       {

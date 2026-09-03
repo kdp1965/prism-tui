@@ -5,7 +5,8 @@ obj/
 *.elf
 *.map
 *.hex
-prism_tui.bin
+# root build artifact only (prebuilt/prism_tui.bin IS tracked)
+/prism_tui.bin
 tools/l4z
 
 # Python
