@@ -12,6 +12,8 @@ so one piece of silicon becomes a WS2812 LED driver, a rotary‑encoder
 decoder, an SPI slave, a delta‑sigma streamer, or an **8‑bit PWM audio DAC**
 — just by shifting in a different state table.
 
+[![prism-tui running on the chip: a chroma listing, FSM state diagram, and command console](PRISM-TUI.png)](PRISM-TUI.png)
+
 On top of that, this firmware runs a full‑screen terminal UI **on the chip
 itself**, over the UART, with:
 
